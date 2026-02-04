@@ -64,43 +64,34 @@
     .bg-steel { background-color: #B7B7CE; } .bg-fairy { background-color: #D685AD; }
 
     /* タイプ相性表 */
-    .type-table-cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; border: 1px solid #e5e7eb; }
+    /* 一画面収縮のためにテーブル自体のサイズは固定気味にする */
+    .type-table-cell { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 1px solid #e5e7eb; }
     .cell-2x { background-color: #fff1f2; color: #e11d48; } .cell-05x { background-color: #eff6ff; color: #2563eb; } .cell-0x { background-color: #f1f5f9; color: #64748b; } .cell-1x { background-color: #ffffff; }
     
-    /* Sticky設定 */
-    .sticky-col { 
-      position: sticky; 
-      left: 0; 
-      z-index: 10; 
-      border-right: 2px solid #e5e7eb;
-      width: 70px;
-      min-width: 70px;
-      max-width: 70px;
-    }
-    .sticky-row { 
-      position: sticky; 
-      top: 0; 
-      z-index: 20; 
-      border-bottom: 2px solid #e5e7eb; 
-      height: 90px; 
-    }
-    .sticky-corner { 
-      position: sticky; 
-      top: 0; 
-      left: 0; 
-      z-index: 30; 
-      background: white; 
-      border-right: 2px solid #e5e7eb; 
-      border-bottom: 2px solid #e5e7eb; 
-      height: 90px; 
-      width: 70px;
-      min-width: 70px;
-      max-width: 70px;
-    }
     .writing-mode-vertical { writing-mode: vertical-rl; -ms-writing-mode: tb-rl; white-space: nowrap; display: flex; align-items: center; justify-content: center; padding: 4px 0; }
     
     .loader { border-top-color: #F87171; animation: spinner 1s linear infinite; }
     @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* フローティングボタン */
+    .fab-btn {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 50%;
+      background-color: #3b82f6;
+      color: white;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, background-color 0.2s;
+      z-index: 40;
+    }
+    .fab-btn:active { transform: scale(0.95); }
+    .fab-btn:hover { background-color: #2563eb; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center relative pb-10">
@@ -112,9 +103,6 @@
         <span class="title-pokemon">ポケモン</span><span class="title-checker">チェッカー</span>
       </h1>
       <p class="text-slate-400 font-bold text-xs md:text-sm tracking-wide mb-4">弱点・種族値をサクッとチェック！</p>
-      <button onclick="openTableModal()" class="inline-flex items-center gap-2 px-6 py-2.5 bg-white border-2 border-slate-100 rounded-full text-sm font-bold text-slate-600 shadow-sm hover:border-blue-300 hover:text-blue-500 transition-colors">
-        <i data-lucide="grid-3x3" class="w-4 h-4"></i> タイプ相性表を見る
-      </button>
     </div>
 
     <!-- 検索バー -->
@@ -188,14 +176,25 @@
     <p>Data provided by <a href="https://pokeapi.co/" target="_blank" class="underline hover:text-slate-500">PokeAPI</a>.</p>
   </footer>
 
+  <!-- フローティングボタン (タイプ相性表) -->
+  <button onclick="openTableModal()" class="fab-btn" aria-label="タイプ相性表を開く">
+    <i data-lucide="grid-3x3" class="w-6 h-6"></i>
+  </button>
+
   <!-- モーダル群 -->
-  <div id="tableModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm hidden transition-opacity opacity-0" onclick="closeTableModal()">
-    <div class="bg-white rounded-3xl w-full max-w-4xl h-[90vh] shadow-2xl transform scale-95 transition-transform border border-slate-100 flex flex-col overflow-hidden" onclick="event.stopPropagation()">
-      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white z-20 shrink-0">
-        <div><h3 class="text-lg font-black text-slate-800 flex items-center gap-2"><i data-lucide="grid-3x3" class="w-5 h-5 text-blue-500"></i> タイプ相性表</h3><p class="text-xs text-slate-400 mt-1">縦が攻撃側、横が防御側です</p></div>
+  <div id="tableModal" class="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/70 backdrop-blur-sm hidden transition-opacity opacity-0" onclick="closeTableModal()">
+    <!-- 中身を中央揃え、最大化しない -->
+    <div class="bg-white rounded-3xl w-full max-w-5xl shadow-2xl transform scale-95 transition-transform border border-slate-100 flex flex-col overflow-hidden max-h-[95vh]" onclick="event.stopPropagation()">
+      <div class="p-3 border-b border-slate-100 flex justify-between items-center bg-white z-20 shrink-0">
+        <div><h3 class="text-lg font-black text-slate-800 flex items-center gap-2"><i data-lucide="grid-3x3" class="w-5 h-5 text-blue-500"></i> タイプ相性表</h3></div>
         <button onclick="closeTableModal()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors"><i data-lucide="x" class="w-5 h-5 text-slate-500"></i></button>
       </div>
-      <div class="flex-1 overflow-auto p-4 bg-white" id="tableContainer"></div>
+      
+      <!-- テーブルコンテナ: ここでflex centerにして、内部のテーブルをJSでtransform scaleする -->
+      <div class="flex-1 overflow-hidden bg-slate-50 relative flex items-center justify-center p-2" id="tableWrapper">
+          <div id="tableContainer" class="origin-center"></div>
+      </div>
+
       <div class="p-3 bg-white border-t border-slate-100 text-xs flex justify-center gap-4 font-bold text-slate-500 shrink-0">
         <span class="flex items-center gap-1"><span class="w-4 h-4 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] text-rose-500">○</span> 2倍</span>
         <span class="flex items-center gap-1"><span class="w-4 h-4 rounded-full bg-white border border-slate-200 flex items-center justify-center text-[10px] text-blue-500">△</span> 0.5倍</span>
@@ -247,7 +246,11 @@
         const id = parseInt(parts[1], 10);
         dict[name] = id;
         idToName[id] = name;
-        SUGGEST_DICT.push(name);
+        
+        // (キョダイ) を含むものはサジェスト候補に入れない
+        if (!name.includes('(キョダイ)')) {
+            SUGGEST_DICT.push(name);
+        }
       }
     });
 
@@ -262,7 +265,7 @@
 
     window.onload = function() {
         loadHistory();
-        // 初期状態でピカチュウを検索する処理を削除
+        // 初期状態は何も検索しない
     };
 
     // --- メイン検索処理 ---
@@ -289,10 +292,18 @@
 
       try {
         let searchId = val.trim();
+        // 辞書に完全一致があればそれを使う
         if (dict[searchId]) {
           searchId = dict[searchId];
-        } else {
-          searchId = searchId.toLowerCase();
+        } 
+        // ひらがな->カタカナ変換して再検索
+        else {
+            const kataId = hiraToKata(searchId);
+            if(dict[kataId]) {
+                searchId = dict[kataId];
+            } else {
+                searchId = searchId.toLowerCase();
+            }
         }
 
         // 1. まずメインポケモンを取得 (1匹目)
@@ -651,11 +662,64 @@
     }
     
     // UIヘルパー関数
-    function renderTypeTable(){const container=document.getElementById('tableContainer');let html='<table class="border-separate border-spacing-0 text-center text-xs">';html+='<thead><tr><th class="p-0 sticky-corner z-30 bg-white border-r-2 border-b-2 border-slate-200"><div class="w-full h-full flex flex-col items-center justify-center text-[9px] text-slate-400 font-bold bg-slate-50"><span class="block">防御➡</span><span class="block">攻撃⬇</span></div></th>';typeKeys.forEach(t=>{html+=`<th class="p-0 sticky-row z-20 text-white border-b-2 border-slate-200 min-w-[40px]" style="background-color:${typeColors[t]}"><div class="writing-mode-vertical h-full w-full flex items-center justify-center font-bold tracking-widest">${typeJa[t]}</div></th>`});html+='</tr></thead><tbody>';typeKeys.forEach(atk=>{html+=`<tr><th class="p-0 sticky-col z-10 text-white border-r-2 border-slate-200" style="background-color:${typeColors[atk]}"><div class="h-[40px] flex items-center justify-center font-bold px-2 text-[11px]">${typeJa[atk]}</div></th>`;typeKeys.forEach(def=>{let effect=0;const rel=typeMatrix[atk];if(rel&&rel[def]!==undefined){effect=rel[def]}let cellClass="type-table-cell";let mark="";if(effect===1){cellClass+=" cell-2x";mark="○"}else if(effect===2){cellClass+=" cell-05x";mark="△"}else if(effect===3){cellClass+=" cell-0x";mark="×"}else{cellClass+=" cell-1x"}html+=`<td class="p-0 border border-slate-100"><div class="${cellClass}">${mark}</div></td>`});html+='</tr>'});html+='</tbody></table>';container.innerHTML=html}
-    function openTableModal(){renderTypeTable();const modal=document.getElementById('tableModal');modal.classList.remove('hidden');setTimeout(()=>{modal.classList.remove('opacity-0');modal.querySelector('div').classList.remove('scale-95');modal.querySelector('div').classList.add('scale-100')},10)}
-    function closeTableModal(){const modal=document.getElementById('tableModal');modal.classList.add('opacity-0');modal.querySelector('div').classList.remove('scale-100');modal.querySelector('div').classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden')},300)}
+    function renderTypeTable(){const container=document.getElementById('tableContainer');let html='<table class="border-separate border-spacing-0 text-center text-xs" id="typeTable">';html+='<thead><tr><th class="p-0 sticky-corner z-30 bg-white border-r-2 border-b-2 border-slate-200"><div class="w-full h-full flex flex-col items-center justify-center text-[9px] text-slate-400 font-bold bg-slate-50"><span class="block">防御➡</span><span class="block">攻撃⬇</span></div></th>';typeKeys.forEach(t=>{html+=`<th class="p-0 sticky-row z-20 text-white border-b-2 border-slate-200 min-w-[32px]" style="background-color:${typeColors[t]}"><div class="writing-mode-vertical h-full w-full flex items-center justify-center font-bold tracking-widest">${typeJa[t]}</div></th>`});html+='</tr></thead><tbody>';typeKeys.forEach(atk=>{html+=`<tr><th class="p-0 sticky-col z-10 text-white border-r-2 border-slate-200" style="background-color:${typeColors[atk]}"><div class="h-[32px] flex items-center justify-center font-bold px-1 text-[10px]">${typeJa[atk]}</div></th>`;typeKeys.forEach(def=>{let effect=0;const rel=typeMatrix[atk];if(rel&&rel[def]!==undefined){effect=rel[def]}let cellClass="type-table-cell";let mark="";if(effect===1){cellClass+=" cell-2x";mark="○"}else if(effect===2){cellClass+=" cell-05x";mark="△"}else if(effect===3){cellClass+=" cell-0x";mark="×"}else{cellClass+=" cell-1x"}html+=`<td class="p-0 border border-slate-100"><div class="${cellClass}">${mark}</div></td>`});html+='</tr>'});html+='</tbody></table>';container.innerHTML=html; fitTableToContainer();}
+    
+    // テーブルをコンテナに収める処理
+    function fitTableToContainer(){
+        const wrapper = document.getElementById('tableWrapper');
+        const table = document.getElementById('typeTable');
+        if(!wrapper || !table) return;
+        
+        // リセット
+        document.getElementById('tableContainer').style.transform = 'scale(1)';
+        
+        const wrapW = wrapper.clientWidth - 16; // padding分
+        const wrapH = wrapper.clientHeight - 16;
+        const tblW = table.offsetWidth;
+        const tblH = table.offsetHeight;
+        
+        if (tblW > 0 && tblH > 0) {
+            const scale = Math.min(1, Math.min(wrapW / tblW, wrapH / tblH));
+            document.getElementById('tableContainer').style.transform = `scale(${scale})`;
+        }
+    }
+
+    function openTableModal(){renderTypeTable();const modal=document.getElementById('tableModal');modal.classList.remove('hidden');setTimeout(()=>{modal.classList.remove('opacity-0');modal.querySelector('div').classList.remove('scale-95');modal.querySelector('div').classList.add('scale-100'); fitTableToContainer(); },10); window.addEventListener('resize', fitTableToContainer);}
+    function closeTableModal(){const modal=document.getElementById('tableModal');modal.classList.add('opacity-0');modal.querySelector('div').classList.remove('scale-100');modal.querySelector('div').classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden')},300); window.removeEventListener('resize', fitTableToContainer);}
+    
     function showSuggestions(show){const list=document.getElementById('suggestList');if(show){list.classList.remove('hidden')}else{setTimeout(()=>list.classList.add('hidden'),200)}}
-    function filterSuggestions(val){const h=document.getElementById('historyArea');const p=document.getElementById('predictArea');const l=document.getElementById('predictList');if(!val){h.classList.remove('hidden');p.classList.add('hidden');return}h.classList.add('hidden');p.classList.remove('hidden');let hits=SUGGEST_DICT.filter(n=>n.includes(val));if(hits.length>0){l.innerHTML=hits.map(n=>`<button onclick="setSearch('${n}')" class="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-bold border-b border-slate-50 last:border-0 transition-colors flex items-center gap-2"><i data-lucide="search" class="w-3 h-3 text-slate-300"></i> ${n}</button>`).join('');lucide.createIcons()}else{l.innerHTML=`<div class="px-3 py-2 text-slate-400 text-sm">候補なし</div>`}}
+    
+    // ひらがな->カタカナ変換
+    function hiraToKata(str) {
+        return str.replace(/[\u3041-\u3096]/g, function(match) {
+            var chr = match.charCodeAt(0) + 0x60;
+            return String.fromCharCode(chr);
+        });
+    }
+
+    function filterSuggestions(val){
+        const h=document.getElementById('historyArea');const p=document.getElementById('predictArea');const l=document.getElementById('predictList');
+        if(!val){h.classList.remove('hidden');p.classList.add('hidden');return}
+        
+        h.classList.add('hidden');p.classList.remove('hidden');
+        
+        // 入力値を正規化（ひらがな->カタカナ）
+        const kataVal = hiraToKata(val);
+        
+        // 検索 (ひらがなでもカタカナでもヒットするように)
+        let hits = SUGGEST_DICT.filter(n => n.includes(val) || n.includes(kataVal));
+        
+        // 表示件数制限 (例えば10件)
+        hits = hits.slice(0, 10);
+
+        if(hits.length>0){
+            l.innerHTML=hits.map(n=>`<button onclick="setSearch('${n}')" class="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-bold border-b border-slate-50 last:border-0 transition-colors flex items-center gap-2"><i data-lucide="search" class="w-3 h-3 text-slate-300"></i> ${n}</button>`).join('');
+            lucide.createIcons()
+        }else{
+            l.innerHTML=`<div class="px-3 py-2 text-slate-400 text-sm">候補なし</div>`
+        }
+    }
+    
     function setSearch(name){document.getElementById('searchInput').value=name;runSearch()}
     function openModal(name,isHidden,flavor){if(window.innerWidth>=768)return;document.getElementById('modalAbilityName').innerText=name;document.getElementById('modalAbilityFlavor').innerText=flavor||'説明文がありません';const badge=document.getElementById('modalHiddenBadge');if(isHidden)badge.classList.remove('hidden');else badge.classList.add('hidden');const modal=document.getElementById('abilityModal');modal.classList.remove('hidden');setTimeout(()=>{modal.classList.remove('opacity-0');modal.querySelector('div').classList.remove('scale-95');modal.querySelector('div').classList.add('scale-100')},10)}
     function closeModal(){const modal=document.getElementById('abilityModal');modal.classList.add('opacity-0');modal.querySelector('div').classList.remove('scale-100');modal.querySelector('div').classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden')},300)}
