@@ -21,7 +21,6 @@
       color: #1f2937;
       margin: 0;
       min-height: 100vh;
-      /* ネイティブスクロールを最大限活かす設定 */
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-y: none;
     }
@@ -31,7 +30,6 @@
       border-radius: 1.5rem;
       border: 1px solid #e5e7eb;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-      /* スマホでの描画最適化 */
       transform: translateZ(0);
     }
     
@@ -151,7 +149,9 @@
   </div>
 
   <script>
+    // アイコン初期化
     lucide.createIcons();
+
     const typeJa = { normal:'ノーマル', fire:'ほのお', water:'みず', electric:'でんき', grass:'くさ', ice:'こおり', fighting:'かくとう', poison:'どく', ground:'じめん', flying:'ひこう', psychic:'エスパー', bug:'むし', rock:'いわ', ghost:'ゴースト', dragon:'ドラゴン', dark:'あく', steel:'はがね', fairy:'フェアリー' };
     const typeKeys = Object.keys(typeJa);
     const typeColors = { normal:'#A8A77A', fire:'#EE8130', water:'#6390F0', electric:'#F7D02C', grass:'#7AC74C', ice:'#96D9D6', fighting:'#C22E28', poison:'#A33EA1', ground:'#E2BF65', flying:'#A98FF3', psychic:'#F95587', bug:'#A6B91A', rock:'#B6A136', ghost:'#735797', dragon:'#6F35FC', dark:'#705746', steel:'#B7B7CE', fairy:'#D685AD' };
@@ -175,10 +175,6 @@
       }
     });
 
-    const typeJa = { normal:'ノーマル', fire:'ほのお', water:'みず', electric:'でんき', grass:'くさ', ice:'こおり', fighting:'かくとう', poison:'どく', ground:'じめん', flying:'ひこう', psychic:'エスパー', bug:'むし', rock:'いわ', ghost:'ゴースト', dragon:'ドラゴン', dark:'あく', steel:'はがね', fairy:'フェアリー' };
-    const typeKeys = Object.keys(typeJa);
-    const typeColors = { normal:'#A8A77A', fire:'#EE8130', water:'#6390F0', electric:'#F7D02C', grass:'#7AC74C', ice:'#96D9D6', fighting:'#C22E28', poison:'#A33EA1', ground:'#E2BF65', flying:'#A98FF3', psychic:'#F95587', bug:'#A6B91A', rock:'#B6A136', ghost:'#735797', dragon:'#6F35FC', dark:'#705746', steel:'#B7B7CE', fairy:'#D685AD' };
-    
     // 相性マトリクス
     const typeMatrix={normal:{rock:2,ghost:3,steel:2},fire:{fire:2,water:2,grass:1,ice:1,bug:1,rock:2,dragon:2,steel:1},water:{fire:1,water:2,grass:2,ground:1,rock:1,dragon:2},electric:{water:1,electric:2,grass:2,ground:3,flying:1,dragon:2},grass:{fire:2,water:1,grass:2,poison:2,ground:1,flying:2,bug:2,rock:1,dragon:2,steel:2},ice:{fire:2,water:2,grass:1,ice:2,ground:1,flying:1,dragon:1,steel:2},fighting:{normal:1,ice:1,poison:2,flying:2,psychic:2,bug:2,rock:1,ghost:3,dark:1,steel:1,fairy:2},poison:{grass:1,poison:2,ground:2,rock:2,ghost:2,steel:3,fairy:1},ground:{fire:1,electric:1,grass:2,poison:1,flying:3,bug:2,rock:1,steel:1},flying:{electric:2,grass:1,fighting:1,bug:1,rock:2,steel:2},psychic:{fighting:1,poison:1,psychic:2,dark:3,steel:2},bug:{fire:2,grass:1,fighting:2,poison:2,flying:2,psychic:1,ghost:2,dark:1,steel:2,fairy:2},rock:{fire:1,ice:1,fighting:2,ground:2,flying:1,bug:1,steel:2},ghost:{normal:3,psychic:1,ghost:1,dark:2},dragon:{dragon:1,steel:2,fairy:3},dark:{fighting:2,psychic:1,ghost:1,dark:2,fairy:2},steel:{fire:2,water:2,electric:2,ice:1,rock:1,steel:2,fairy:1},fairy:{fire:2,fighting:1,poison:2,dragon:1,dark:1,steel:2}};
 
@@ -353,49 +349,34 @@
     // 進化解析 (JS版)
     function parseEvolution(chain, currentName) {
         let result = { pre: null, next: [] };
-        function traverse(node, prevName) {
+        
+        function extractIdFromUrl(url) {
+            if (!url) return null;
+            const parts = url.split('/').filter(Boolean);
+            return parseInt(parts[parts.length - 1], 10);
+        }
+
+        function getNameFromNode(node) {
+            const id = extractIdFromUrl(node.species.url);
+            return idToName[id] || node.species.name; // ID辞書から日本語名を取得、なければ英語名
+        }
+
+        function traverse(node, prevNode) {
             // PokeAPIのspecies.nameは英語小文字
             if (node.species.name === currentName) {
-                if (prevName) result.pre = convertToJa(prevName);
+                if (prevNode) result.pre = getNameFromNode(prevNode);
                 if (node.evolves_to.length > 0) {
-                    result.next = node.evolves_to.map(e => convertToJa(e.species.name));
+                    result.next = node.evolves_to.map(e => getNameFromNode(e));
                 }
                 return true;
             }
             for (let i = 0; i < node.evolves_to.length; i++) {
-                if (traverse(node.evolves_to[i], node.species.name)) return true;
+                if (traverse(node.evolves_to[i], node)) return true;
             }
             return false;
         }
         traverse(chain, null);
         return result;
-    }
-
-    function convertToJa(engName) {
-        // 辞書オブジェクト(idToName)はIDキーなので使えないため
-        // ここで簡易変換するか、辞書を逆引き(Name->ID->Name)する必要があるが
-        // 今回はシンプルに英語名->日本語名の対応表を少し持つか、
-        // 辞書(dict)を使って逆引きする (dictは "フシギダネ":1 形式)
-        
-        // dictから探す (dictのキーが日本語、値がID)
-        // しかしengNameは英語なので、これだけでは解決しない
-        // PokeAPIの仕様上、種族リソースに日本語名が含まれているので
-        // 本来はそこから取るべきだが、進化チェーンJSONには英語名しかない
-        // 簡易マッピングで対応
-        const map = {
-            "bulbasaur":"フシギダネ", "ivysaur":"フシギソウ", "venusaur":"フシギバナ",
-            "charmander":"ヒトカゲ", "charmeleon":"リザード", "charizard":"リザードン",
-            "squirtle":"ゼニガメ", "wartortle":"カメール", "blastoise":"カメックス",
-            "pichu":"ピチュー", "pikachu":"ピカチュウ", "raichu":"ライチュウ",
-            "rattata":"コラッタ", "raticate":"ラッタ",
-            "vulpix": "ロコン", "ninetales": "キュウコン",
-            "eevee": "イーブイ", "vaporeon": "シャワーズ", "jolteon": "サンダース", "flareon": "ブースター",
-            "espeon": "エーフィ", "umbreon": "ブラッキー", "leafeon": "リーフィア", "glaceon": "グレイシア", "sylveon": "ニンフィア",
-            "gastly": "ゴース", "haunter": "ゴースト", "gengar": "ゲンガー",
-            "riolu": "リオル", "lucario": "ルカリオ",
-            "gible": "フカマル", "gabite": "ガバイト", "garchomp": "ガブリアス"
-        };
-        return map[engName] || engName; // マップになければ英語名のまま
     }
 
     // --- UI操作系 ---
@@ -429,7 +410,6 @@
         if (hasNav) nav.classList.remove('hidden'); else nav.classList.add('hidden');
     }
 
-    // (createCardHTML などの表示系関数は変更なしのため省略せず記述します)
     function createCardHTML(data) {
         let mults = {};
         data.typeDetails.forEach(td => {
@@ -541,7 +521,7 @@
        if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}
     }
     
-    // (相性表・モーダル・履歴などのヘルパー関数は変更なしのため省略せず記述)
+    // UIヘルパー関数
     function renderTypeTable(){const container=document.getElementById('tableContainer');let html='<table class="border-separate border-spacing-0 text-center text-xs">';html+='<thead><tr><th class="p-0 sticky-corner z-30 bg-white border-r-2 border-b-2 border-slate-200"><div class="w-full h-full flex flex-col items-center justify-center text-[9px] text-slate-400 font-bold bg-slate-50"><span class="block">防御➡</span><span class="block">攻撃⬇</span></div></th>';typeKeys.forEach(t=>{html+=`<th class="p-0 sticky-row z-20 text-white border-b-2 border-slate-200 min-w-[40px]" style="background-color:${typeColors[t]}"><div class="writing-mode-vertical h-full w-full flex items-center justify-center font-bold tracking-widest">${typeJa[t]}</div></th>`});html+='</tr></thead><tbody>';typeKeys.forEach(atk=>{html+=`<tr><th class="p-0 sticky-col z-10 text-white border-r-2 border-slate-200" style="background-color:${typeColors[atk]}"><div class="h-[40px] flex items-center justify-center font-bold px-2 text-[11px]">${typeJa[atk]}</div></th>`;typeKeys.forEach(def=>{let effect=0;const rel=typeMatrix[atk];if(rel&&rel[def]!==undefined){effect=rel[def]}let cellClass="type-table-cell";let mark="";if(effect===1){cellClass+=" cell-2x";mark="○"}else if(effect===2){cellClass+=" cell-05x";mark="△"}else if(effect===3){cellClass+=" cell-0x";mark="×"}else{cellClass+=" cell-1x"}html+=`<td class="p-0 border border-slate-100"><div class="${cellClass}">${mark}</div></td>`});html+='</tr>'});html+='</tbody></table>';container.innerHTML=html}
     function openTableModal(){renderTypeTable();const modal=document.getElementById('tableModal');modal.classList.remove('hidden');setTimeout(()=>{modal.classList.remove('opacity-0');modal.querySelector('div').classList.remove('scale-95');modal.querySelector('div').classList.add('scale-100')},10)}
     function closeTableModal(){const modal=document.getElementById('tableModal');modal.classList.add('opacity-0');modal.querySelector('div').classList.remove('scale-100');modal.querySelector('div').classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden')},300)}
