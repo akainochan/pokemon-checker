@@ -67,13 +67,12 @@
     .type-table-cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; border: 1px solid #e5e7eb; }
     .cell-2x { background-color: #fff1f2; color: #e11d48; } .cell-05x { background-color: #eff6ff; color: #2563eb; } .cell-0x { background-color: #f1f5f9; color: #64748b; } .cell-1x { background-color: #ffffff; }
     
-    /* Sticky設定の修正 */
+    /* Sticky設定 */
     .sticky-col { 
       position: sticky; 
       left: 0; 
       z-index: 10; 
       border-right: 2px solid #e5e7eb;
-      /* 幅を固定して崩れを防ぐ */
       width: 70px;
       min-width: 70px;
       max-width: 70px;
@@ -94,7 +93,6 @@
       border-right: 2px solid #e5e7eb; 
       border-bottom: 2px solid #e5e7eb; 
       height: 90px; 
-      /* 幅を固定して崩れを防ぐ */
       width: 70px;
       min-width: 70px;
       max-width: 70px;
@@ -171,7 +169,6 @@
 
             <!-- その他のアイコンリスト -->
             <div id="otherFormsWrapper" class="hidden">
-                 <!-- <h4 class="text-sm font-bold text-slate-400 mb-3 text-center">その他のフォルム</h4> -->
                  <div id="otherFormsGrid" class="flex flex-wrap gap-3 justify-center"></div>
             </div>
         </div>
@@ -265,9 +262,7 @@
 
     window.onload = function() {
         loadHistory();
-        // 初期状態でピカチュウを検索
-        document.getElementById('searchInput').value = 'ピカチュウ';
-        runSearch();
+        // 初期状態でピカチュウを検索する処理を削除
     };
 
     // --- メイン検索処理 ---
