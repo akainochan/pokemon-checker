@@ -39,6 +39,21 @@
     .type-badge { border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-weight: 800; letter-spacing: 0.05em; }
     .resist-label { display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 900; margin-bottom: 0.5rem; }
     
+    /* アイコンカード用のスタイル */
+    .icon-card {
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: zoom-in;
+    }
+    .icon-card:active {
+      transform: scale(0.95);
+    }
+    .gmax-card {
+      transition: transform 0.2s;
+    }
+    .gmax-card:hover {
+      transform: translateY(-2px);
+    }
+
     @media (min-width: 768px) { .resist-label { font-size: 0.85rem; padding: 0.3rem 0.8rem; } }
 
     /* タイプ色 */
@@ -51,9 +66,39 @@
     /* タイプ相性表 */
     .type-table-cell { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; border: 1px solid #e5e7eb; }
     .cell-2x { background-color: #fff1f2; color: #e11d48; } .cell-05x { background-color: #eff6ff; color: #2563eb; } .cell-0x { background-color: #f1f5f9; color: #64748b; } .cell-1x { background-color: #ffffff; }
-    .sticky-col { position: sticky; left: 0; z-index: 10; border-right: 2px solid #e5e7eb; }
-    .sticky-row { position: sticky; top: 0; z-index: 20; border-bottom: 2px solid #e5e7eb; height: 90px; }
-    .sticky-corner { position: sticky; top: 0; left: 0; z-index: 30; background: white; border-right: 2px solid #e5e7eb; border-bottom: 2px solid #e5e7eb; height: 90px; width: 80px; }
+    
+    /* Sticky設定の修正 */
+    .sticky-col { 
+      position: sticky; 
+      left: 0; 
+      z-index: 10; 
+      border-right: 2px solid #e5e7eb;
+      /* 幅を固定して崩れを防ぐ */
+      width: 70px;
+      min-width: 70px;
+      max-width: 70px;
+    }
+    .sticky-row { 
+      position: sticky; 
+      top: 0; 
+      z-index: 20; 
+      border-bottom: 2px solid #e5e7eb; 
+      height: 90px; 
+    }
+    .sticky-corner { 
+      position: sticky; 
+      top: 0; 
+      left: 0; 
+      z-index: 30; 
+      background: white; 
+      border-right: 2px solid #e5e7eb; 
+      border-bottom: 2px solid #e5e7eb; 
+      height: 90px; 
+      /* 幅を固定して崩れを防ぐ */
+      width: 70px;
+      min-width: 70px;
+      max-width: 70px;
+    }
     .writing-mode-vertical { writing-mode: vertical-rl; -ms-writing-mode: tb-rl; white-space: nowrap; display: flex; align-items: center; justify-content: center; padding: 4px 0; }
     
     .loader { border-top-color: #F87171; animation: spinner 1s linear infinite; }
@@ -79,7 +124,7 @@
       <div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
         <i data-lucide="search" class="text-slate-400 w-5 h-5"></i>
       </div>
-      <input type="text" id="searchInput" placeholder="ポケモン名 (例: ラッタ)" autocomplete="off"
+      <input type="text" id="searchInput" placeholder="ポケモン名 (例: フシギダネ)" autocomplete="off"
         class="w-full h-12 md:h-14 pl-12 pr-24 rounded-full border-2 border-slate-200 bg-white text-base md:text-lg font-bold placeholder-slate-300 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-50 transition-all shadow-sm relative z-20"
         onfocus="showSuggestions(true)" onblur="setTimeout(() => showSuggestions(false), 200)" oninput="filterSuggestions(this.value)" onkeydown="if(event.key === 'Enter') runSearch()">
       <button onclick="runSearch()" class="absolute right-2 top-1.5 md:top-2 h-9 md:h-10 px-5 md:px-6 bg-rose-400 hover:bg-rose-500 text-white rounded-full font-bold shadow-md transition-transform active:scale-95 text-xs md:text-sm z-20">検索</button>
@@ -108,7 +153,29 @@
 
     <div id="error" class="hidden max-w-lg mx-auto bg-red-50 text-red-500 p-6 rounded-2xl text-center font-bold border border-red-100 mb-10 shadow-sm"></div>
 
-    <div id="resultContainer" class="hidden space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-500 pb-20"></div>
+    <div id="resultContainer" class="hidden space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-500 pb-20">
+        <!-- メインのポケモンカードはここに追加 -->
+        <div id="mainCardsArea" class="space-y-12"></div>
+        
+        <!-- 別の姿（キョダイマックス・その他）エリア -->
+        <div id="altFormsSection" class="hidden pt-6 border-t border-slate-200">
+            <h3 class="text-center font-black text-slate-400 text-lg mb-6 tracking-widest uppercase">別の姿</h3>
+            
+            <!-- キョダイマックス専用 -->
+            <div id="gmaxWrapper" class="hidden mb-10">
+                <h4 class="text-sm font-bold text-rose-500 mb-3 flex items-center justify-center gap-1">
+                    <i data-lucide="cloud-lightning" class="w-4 h-4"></i> キョダイマックスの姿
+                </h4>
+                <div id="gmaxList" class="space-y-4"></div>
+            </div>
+
+            <!-- その他のアイコンリスト -->
+            <div id="otherFormsWrapper" class="hidden">
+                 <!-- <h4 class="text-sm font-bold text-slate-400 mb-3 text-center">その他のフォルム</h4> -->
+                 <div id="otherFormsGrid" class="flex flex-wrap gap-3 justify-center"></div>
+            </div>
+        </div>
+    </div>
     
     <div id="moreLoading" class="hidden flex-col items-center py-10">
        <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-200 h-8 w-8 mb-2"></div>
@@ -147,6 +214,18 @@
       <button onclick="closeModal()" class="mt-6 w-full py-3.5 bg-slate-800 text-white font-bold rounded-2xl shadow-lg hover:bg-slate-700 transition-colors active:scale-95">閉じる</button>
     </div>
   </div>
+  
+  <!-- 画像拡大モーダル -->
+  <div id="imageModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden transition-opacity opacity-0" onclick="closeImageModal()">
+      <div class="relative max-w-lg w-full flex flex-col items-center" onclick="event.stopPropagation()">
+          <button onclick="closeImageModal()" class="absolute -top-12 right-0 p-2 text-white/80 hover:text-white transition-colors"><i data-lucide="x" class="w-8 h-8"></i></button>
+          <div class="bg-white rounded-3xl p-4 md:p-8 w-full shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-200">
+              <h3 id="imageModalTitle" class="text-xl font-black text-slate-800 mb-4 text-center"></h3>
+              <img id="imageModalImg" src="" class="w-48 h-48 md:w-64 md:h-64 object-contain drop-shadow-lg mb-4">
+              <div id="imageModalType" class="flex gap-2 mb-4"></div>
+          </div>
+      </div>
+  </div>
 
   <script>
     // アイコン初期化
@@ -178,7 +257,18 @@
     // 相性マトリクス
     const typeMatrix={normal:{rock:2,ghost:3,steel:2},fire:{fire:2,water:2,grass:1,ice:1,bug:1,rock:2,dragon:2,steel:1},water:{fire:1,water:2,grass:2,ground:1,rock:1,dragon:2},electric:{water:1,electric:2,grass:2,ground:3,flying:1,dragon:2},grass:{fire:2,water:1,grass:2,poison:2,ground:1,flying:2,bug:2,rock:1,dragon:2,steel:2},ice:{fire:2,water:2,grass:1,ice:2,ground:1,flying:1,dragon:1,steel:2},fighting:{normal:1,ice:1,poison:2,flying:2,psychic:2,bug:2,rock:1,ghost:3,dark:1,steel:1,fairy:2},poison:{grass:1,poison:2,ground:2,rock:2,ghost:2,steel:3,fairy:1},ground:{fire:1,electric:1,grass:2,poison:1,flying:3,bug:2,rock:1,steel:1},flying:{electric:2,grass:1,fighting:1,bug:1,rock:2,steel:2},psychic:{fighting:1,poison:1,psychic:2,dark:3,steel:2},bug:{fire:2,grass:1,fighting:2,poison:2,flying:2,psychic:1,ghost:2,dark:1,steel:2,fairy:2},rock:{fire:1,ice:1,fighting:2,ground:2,flying:1,bug:1,steel:2},ghost:{normal:3,psychic:1,ghost:1,dark:2},dragon:{dragon:1,steel:2,fairy:3},dark:{fighting:2,psychic:1,ghost:1,dark:2,fairy:2},steel:{fire:2,water:2,electric:2,ice:1,rock:1,steel:2,fairy:1},fairy:{fire:2,fighting:1,poison:2,dragon:1,dark:1,steel:2}};
 
-    window.onload = function() { loadHistory(); };
+    // 重要なフォームのキーワード (これらは大きく表示)
+    const majorSuffixes = ["mega", "alola", "galar", "hisui", "paldea", "primal", "origin", "therian", "incarnate"];
+
+    // 除外するフォーム (ピカチュウの帽子など)
+    const IGNORE_PATTERNS = ["-cap", "-totem", "-starter", "-cosplay"];
+
+    window.onload = function() {
+        loadHistory();
+        // 初期状態でピカチュウを検索
+        document.getElementById('searchInput').value = 'ピカチュウ';
+        runSearch();
+    };
 
     // --- メイン検索処理 ---
     async function runSearch() {
@@ -191,17 +281,22 @@
       document.getElementById('suggestList').classList.add('hidden');
       document.getElementById('quickNav').classList.add('hidden');
       document.getElementById('moreLoading').classList.add('hidden');
-      document.getElementById('resultContainer').innerHTML = ''; // クリア
+      
+      // 結果エリア初期化
+      document.getElementById('mainCardsArea').innerHTML = ''; 
+      document.getElementById('gmaxList').innerHTML = '';
+      document.getElementById('gmaxWrapper').classList.add('hidden');
+      document.getElementById('otherFormsGrid').innerHTML = '';
+      document.getElementById('otherFormsWrapper').classList.add('hidden');
+      document.getElementById('altFormsSection').classList.add('hidden');
       
       saveHistory(val);
 
       try {
         let searchId = val.trim();
-        // 辞書チェック
         if (dict[searchId]) {
           searchId = dict[searchId];
         } else {
-          // 辞書にない場合は英語名として小文字化
           searchId = searchId.toLowerCase();
         }
 
@@ -212,12 +307,12 @@
         document.getElementById('resultContainer').classList.remove('hidden');
         
         // メインカード表示
-        const container = document.getElementById('resultContainer');
+        const container = document.getElementById('mainCardsArea');
         container.innerHTML += createCardHTML(mainData);
         updateQuickNav(mainData);
         lucide.createIcons();
 
-        // 2. 関連する姿 (メガシンカ等) があれば遅延ロード
+        // 2. 関連する姿があれば遅延ロードして振り分け
         if (mainData.variations && mainData.variations.length > 0) {
             loadVariations(mainData.variations);
         }
@@ -229,60 +324,90 @@
       }
     }
 
-    // --- 関連する姿の遅延ロード ---
+    // --- 関連する姿の遅延ロードと振り分け ---
     async function loadVariations(variations) {
         document.getElementById('moreLoading').classList.remove('hidden');
-        const container = document.getElementById('resultContainer');
+        const mainArea = document.getElementById('mainCardsArea');
         
-        for (const v of variations) {
-            try {
-                // IDで取得
-                const data = await fetchPokemonData(v.targetId);
-                // 重複チェック
-                if (!document.getElementById(data.uniqueId || 'poke-'+data.id)) {
-                    container.innerHTML += createCardHTML(data);
-                }
-            } catch (e) {
-                console.warn("Failed to load variation:", v.name, e);
+        const altSection = document.getElementById('altFormsSection');
+        const gmaxWrapper = document.getElementById('gmaxWrapper');
+        const gmaxList = document.getElementById('gmaxList');
+        const otherWrapper = document.getElementById('otherFormsWrapper');
+        const otherGrid = document.getElementById('otherFormsGrid');
+        
+        // 並列で取得して高速化
+        const promises = variations.map(v => fetchPokemonData(v.targetId).catch(e => {
+            console.warn("Failed to load variation:", v.name, e);
+            return null;
+        }));
+
+        const results = await Promise.all(promises);
+
+        for (const data of results) {
+            if (!data) continue;
+            if (document.getElementById(data.uniqueId || 'poke-'+data.id)) continue; // 重複防止
+
+            // 除外フィルタリング
+            const isIgnored = IGNORE_PATTERNS.some(p => data.rawName.includes(p));
+            if (isIgnored) continue;
+
+            // 1. メジャーな姿 (メガシンカ, リージョンフォームなど) -> メイン表示
+            const isMajor = majorSuffixes.some(s => data.rawName.includes(s));
+
+            // 2. キョダイマックス -> 専用エリア
+            const isGmax = data.rawName.includes('gmax');
+
+            if (isMajor) {
+                mainArea.innerHTML += createCardHTML(data);
+            } else if (isGmax) {
+                altSection.classList.remove('hidden');
+                gmaxWrapper.classList.remove('hidden');
+                gmaxList.innerHTML += createGmaxCardHTML(data);
+            } else {
+                // 3. その他 (マイナーなフォルムチェンジ) -> アイコンのみ
+                altSection.classList.remove('hidden');
+                otherWrapper.classList.remove('hidden');
+                otherGrid.innerHTML += createIconCardHTML(data);
             }
         }
+        
         document.getElementById('moreLoading').classList.add('hidden');
         lucide.createIcons();
     }
 
-    // --- データ取得ロジック (API直接呼び出し) ---
+    // --- データ取得ロジック ---
     async function fetchPokemonData(idOrName) {
-        // 基本データ
         const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${idOrName}`);
         if (!res.ok) throw new Error("Not Found");
         const data = await res.json();
 
-        // Speciesデータ (日本語名など)
         const speciesRes = await fetch(data.species.url);
         const species = await speciesRes.json();
 
-        // 日本語名決定
         let jaName = species.names.find(x => x.language.name === 'ja')?.name || data.name;
-        
+        let displayName = jaName;
+
         // フォーム名補正 (簡易)
         if (data.name !== species.name) {
              const suffix = data.name.replace(species.name + '-', '');
-             if (suffix === 'mega') jaName = "メガ" + jaName;
-             else if (suffix === 'mega-x') jaName = "メガ" + jaName + " X";
-             else if (suffix === 'mega-y') jaName = "メガ" + jaName + " Y";
-             else if (suffix === 'alola') jaName = jaName + "(アローラ)";
-             else if (suffix === 'galar') jaName = jaName + "(ガラル)";
-             else if (suffix === 'hisui') jaName = jaName + "(ヒスイ)";
-             else if (suffix === 'paldea') jaName = jaName + "(パルデア)";
-             else if (suffix === 'gmax') jaName = jaName + "(キョダイ)";
-             else if (suffix === 'primal') jaName = "ゲンシ" + jaName;
+             // 英語名をそのまま使う場合も考慮しつつ、主要なものは日本語化
+             if (suffix === 'mega') displayName = "メガ" + jaName;
+             else if (suffix === 'mega-x') displayName = "メガ" + jaName + " X";
+             else if (suffix === 'mega-y') displayName = "メガ" + jaName + " Y";
+             else if (suffix === 'alola') displayName = jaName + "(アローラ)";
+             else if (suffix === 'galar') displayName = jaName + "(ガラル)";
+             else if (suffix === 'hisui') displayName = jaName + "(ヒスイ)";
+             else if (suffix === 'paldea') displayName = jaName + "(パルデア)";
+             else if (suffix === 'gmax') displayName = jaName + "(キョダイ)";
+             else if (suffix === 'primal') displayName = "ゲンシ" + jaName;
+             // その他（英語のままにするか、suffixを表示）
+             else displayName = jaName + ` (${suffix})`;
         }
 
         // タイプ相性計算用のURLリスト
         const typeUrls = data.types.map(t => t.type.url);
         const typeDetails = await Promise.all(typeUrls.map(url => fetch(url).then(r => r.json())));
 
-        // 特性 (日本語化)
         const abilityPromises = data.abilities.map(async a => {
             const r = await fetch(a.ability.url);
             const j = await r.json();
@@ -292,36 +417,19 @@
         });
         const abilities = await Promise.all(abilityPromises);
 
-        // 進化情報取得 (非同期)
         const evoRes = await fetch(species.evolution_chain.url);
         const evoJson = await evoRes.json();
         const evolution = parseEvolution(evoJson.chain, species.name);
 
-        // 関連する姿 (リスト作成のみ)
         let variations = [];
-        const allowedSuffixes = ["mega", "alola", "galar", "hisui", "paldea", "gmax", "primal", "origin", "therian"];
         if (species.varieties.length > 1) {
             species.varieties.forEach(v => {
                 if (v.pokemon.name === data.name) return; // 自分は除外
-                const parts = v.pokemon.name.split('-');
-                if (allowedSuffixes.some(s => v.pokemon.name.includes(s))) {
-                     // ID抽出
-                     const urlParts = v.pokemon.url.split('/');
-                     const vId = urlParts[urlParts.length - 2];
-                     
-                     // 名前解決 (辞書にあればそれ、なければ仮名)
-                     let vName = v.pokemon.name;
-                     if(idToName[vId]) vName = idToName[vId];
-                     else {
-                         // 簡易置換
-                         vName = vName.replace(species.name+'-', '');
-                         if(vName==='mega') vName='メガ';
-                         if(vName==='mega-x') vName='メガX';
-                         if(vName==='mega-y') vName='メガY';
-                         if(vName==='gmax') vName='キョダイ';
-                     }
-                     variations.push({ name: vName, targetId: vId });
-                }
+                if (v.pokemon.name.includes("-totem")) return;
+
+                const urlParts = v.pokemon.url.split('/');
+                const vId = urlParts[urlParts.length - 2];
+                variations.push({ name: v.pokemon.name, targetId: vId });
             });
         }
 
@@ -331,7 +439,8 @@
         return {
             id: data.id,
             uniqueId: "poke-" + data.id,
-            name: jaName,
+            rawName: data.name, // 判定用英語名
+            name: displayName,
             genus: genus,
             image: data.sprites.other['official-artwork'].front_default || data.sprites.front_default,
             flavor: flavor.replace(/\r?\n|\f/g, ''),
@@ -346,33 +455,17 @@
         };
     }
 
-    // 進化解析 (JS版)
     function parseEvolution(chain, currentName) {
         let result = { pre: null, next: [] };
-        
-        function extractIdFromUrl(url) {
-            if (!url) return null;
-            const parts = url.split('/').filter(Boolean);
-            return parseInt(parts[parts.length - 1], 10);
-        }
-
-        function getNameFromNode(node) {
-            const id = extractIdFromUrl(node.species.url);
-            return idToName[id] || node.species.name; // ID辞書から日本語名を取得、なければ英語名
-        }
-
+        function extractIdFromUrl(url) { if (!url) return null; const parts = url.split('/').filter(Boolean); return parseInt(parts[parts.length - 1], 10); }
+        function getNameFromNode(node) { const id = extractIdFromUrl(node.species.url); return idToName[id] || node.species.name; }
         function traverse(node, prevNode) {
-            // PokeAPIのspecies.nameは英語小文字
             if (node.species.name === currentName) {
                 if (prevNode) result.pre = getNameFromNode(prevNode);
-                if (node.evolves_to.length > 0) {
-                    result.next = node.evolves_to.map(e => getNameFromNode(e));
-                }
+                if (node.evolves_to.length > 0) { result.next = node.evolves_to.map(e => getNameFromNode(e)); }
                 return true;
             }
-            for (let i = 0; i < node.evolves_to.length; i++) {
-                if (traverse(node.evolves_to[i], node)) return true;
-            }
+            for (let i = 0; i < node.evolves_to.length; i++) { if (traverse(node.evolves_to[i], node)) return true; }
             return false;
         }
         traverse(chain, null);
@@ -399,17 +492,58 @@
             }
         }
         
-        if (data.variations && data.variations.length > 0) {
-            hasNav = true;
-            content.innerHTML += `<span class="text-[10px] font-bold text-slate-400 mr-1 ml-2">他の姿:</span>`;
-            data.variations.forEach(v => {
-                content.innerHTML += `<button onclick="scrollToCard('${v.targetId}')" class="px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-400 hover:text-blue-500 text-slate-500 rounded-full text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"><span class="w-2 h-2 rounded-full bg-blue-400"></span> ${v.name}</button>`;
-            });
-        }
-
         if (hasNav) nav.classList.remove('hidden'); else nav.classList.add('hidden');
     }
+    
+    // アイコンカード (クリックで拡大)
+    function createIconCardHTML(data) {
+        const mainType = data.types[0];
+        const typeColor = typeColors[mainType] || '#94a3b8';
+        const imgUrl = data.image;
+        const name = data.name.replace(/\(.*\)/, '').trim();
+        const typesJson = JSON.stringify(data.types); // モーダル用
+        
+        // シングルクォートエスケープ
+        const safeName = name.replace(/'/g, "\\'");
+        
+        return `
+        <div onclick='openImageModal("${imgUrl}", "${safeName}", ${typesJson})' class="icon-card relative w-16 h-16 md:w-20 md:h-20 bg-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden group">
+            <div class="absolute inset-x-0 bottom-0 h-1/2 opacity-20" style="background-color: ${typeColor};"></div>
+            <img src="${imgUrl}" class="w-12 h-12 md:w-16 md:h-16 object-contain z-10 group-hover:scale-110 transition-transform duration-300" loading="lazy" alt="${name}">
+        </div>
+        `;
+    }
 
+    // キョダイマックスカード (リッチなリスト表示)
+    function createGmaxCardHTML(data) {
+        const mainType = data.types[0];
+        const typeColor = typeColors[mainType] || '#94a3b8';
+        const imgUrl = data.image;
+        const name = data.name;
+        const typesJson = JSON.stringify(data.types); // モーダル用
+        const safeName = name.replace(/'/g, "\\'");
+        
+        return `
+        <div class="gmax-card flex items-center bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden p-4 relative">
+            <div class="absolute left-0 top-0 bottom-0 w-2" style="background-color: ${typeColor};"></div>
+            
+            <div onclick='openImageModal("${imgUrl}", "${safeName}", ${typesJson})' class="w-24 h-24 shrink-0 mr-4 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 cursor-zoom-in hover:opacity-80 transition-opacity">
+                <img src="${data.image}" class="w-20 h-20 object-contain drop-shadow-md" loading="lazy">
+            </div>
+            
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                    <h3 class="font-black text-slate-800 text-lg">${data.name}</h3>
+                </div>
+                <div class="text-xs text-slate-500 leading-relaxed line-clamp-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                   ${data.flavor || "説明文がありません"}
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    // 詳細表示用のカード生成 (変更なし)
     function createCardHTML(data) {
         let mults = {};
         data.typeDetails.forEach(td => {
@@ -530,6 +664,26 @@
     function setSearch(name){document.getElementById('searchInput').value=name;runSearch()}
     function openModal(name,isHidden,flavor){if(window.innerWidth>=768)return;document.getElementById('modalAbilityName').innerText=name;document.getElementById('modalAbilityFlavor').innerText=flavor||'説明文がありません';const badge=document.getElementById('modalHiddenBadge');if(isHidden)badge.classList.remove('hidden');else badge.classList.add('hidden');const modal=document.getElementById('abilityModal');modal.classList.remove('hidden');setTimeout(()=>{modal.classList.remove('opacity-0');modal.querySelector('div').classList.remove('scale-95');modal.querySelector('div').classList.add('scale-100')},10)}
     function closeModal(){const modal=document.getElementById('abilityModal');modal.classList.add('opacity-0');modal.querySelector('div').classList.remove('scale-100');modal.querySelector('div').classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden')},300)}
+    
+    // 画像モーダル制御
+    function openImageModal(imgUrl, name, types){
+        document.getElementById('imageModalImg').src = imgUrl;
+        document.getElementById('imageModalTitle').innerText = name;
+        
+        // タイプバッジ生成
+        const typesHTML = types.map(t => `<span class="type-badge px-3 py-1 rounded-full text-white text-xs" style="background-color:${typeColors[t]}">${typeJa[t]}</span>`).join('');
+        document.getElementById('imageModalType').innerHTML = typesHTML;
+
+        const modal = document.getElementById('imageModal');
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+    }
+    function closeImageModal(){
+        const modal = document.getElementById('imageModal');
+        modal.classList.add('opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
     function loadHistory(){const history=JSON.parse(localStorage.getItem('poke_history')||'[]');renderHistory(history)}
     function saveHistory(name){let history=JSON.parse(localStorage.getItem('poke_history')||'[]');history=history.filter(h=>h!==name);history.unshift(name);if(history.length>5)history.pop();localStorage.setItem('poke_history',JSON.stringify(history));renderHistory(history)}
     function renderHistory(history){const el=document.getElementById('historyList');if(history.length===0){el.innerHTML='<span class="text-xs text-slate-300 px-2">履歴なし</span>';return}el.innerHTML=history.map(name=>`<button onclick="setSearch('${name}')" class="bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full text-sm text-slate-600 font-bold transition-colors">${name}</button>`).join('')}
