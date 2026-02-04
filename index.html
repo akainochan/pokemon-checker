@@ -63,13 +63,6 @@
     .bg-rock { background-color: #B6A136; } .bg-ghost { background-color: #735797; } .bg-dragon { background-color: #6F35FC; } .bg-dark { background-color: #705746; }
     .bg-steel { background-color: #B7B7CE; } .bg-fairy { background-color: #D685AD; }
 
-    /* タイプ相性表 */
-    /* 一画面収縮のためにテーブル自体のサイズは固定気味にする */
-    .type-table-cell { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 1px solid #e5e7eb; }
-    .cell-2x { background-color: #fff1f2; color: #e11d48; } .cell-05x { background-color: #eff6ff; color: #2563eb; } .cell-0x { background-color: #f1f5f9; color: #64748b; } .cell-1x { background-color: #ffffff; }
-    
-    .writing-mode-vertical { writing-mode: vertical-rl; -ms-writing-mode: tb-rl; white-space: nowrap; display: flex; align-items: center; justify-content: center; padding: 4px 0; }
-    
     .loader { border-top-color: #F87171; animation: spinner 1s linear infinite; }
     @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
@@ -182,17 +175,17 @@
   </button>
 
   <!-- モーダル群 -->
-  <div id="tableModal" class="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/70 backdrop-blur-sm hidden transition-opacity opacity-0" onclick="closeTableModal()">
-    <!-- 中身を中央揃え、最大化しない -->
-    <div class="bg-white rounded-3xl w-full max-w-5xl shadow-2xl transform scale-95 transition-transform border border-slate-100 flex flex-col overflow-hidden max-h-[95vh]" onclick="event.stopPropagation()">
+  <div id="tableModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden transition-opacity opacity-0" onclick="closeTableModal()">
+    <!-- 中身を中央揃え -->
+    <div class="bg-white rounded-3xl w-full max-w-4xl shadow-2xl transform scale-95 transition-transform border border-slate-100 flex flex-col overflow-hidden max-h-[90vh]" onclick="event.stopPropagation()">
       <div class="p-3 border-b border-slate-100 flex justify-between items-center bg-white z-20 shrink-0">
         <div><h3 class="text-lg font-black text-slate-800 flex items-center gap-2"><i data-lucide="grid-3x3" class="w-5 h-5 text-blue-500"></i> タイプ相性表</h3></div>
         <button onclick="closeTableModal()" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors"><i data-lucide="x" class="w-5 h-5 text-slate-500"></i></button>
       </div>
       
-      <!-- テーブルコンテナ: ここでflex centerにして、内部のテーブルをJSでtransform scaleする -->
-      <div class="flex-1 overflow-hidden bg-slate-50 relative flex items-center justify-center p-2" id="tableWrapper">
-          <div id="tableContainer" class="origin-center"></div>
+      <!-- 画像(SVG)コンテナ: ここにSVGを描画する -->
+      <div class="flex-1 overflow-hidden bg-slate-50 relative flex items-center justify-center p-2">
+          <div id="tableContainer" class="w-full h-full flex items-center justify-center"></div>
       </div>
 
       <div class="p-3 bg-white border-t border-slate-100 text-xs flex justify-center gap-4 font-bold text-slate-500 shrink-0">
@@ -661,31 +654,67 @@
        if(el){el.scrollIntoView({behavior:'smooth',block:'start'});}
     }
     
-    // UIヘルパー関数
-    function renderTypeTable(){const container=document.getElementById('tableContainer');let html='<table class="border-separate border-spacing-0 text-center text-xs" id="typeTable">';html+='<thead><tr><th class="p-0 sticky-corner z-30 bg-white border-r-2 border-b-2 border-slate-200"><div class="w-full h-full flex flex-col items-center justify-center text-[9px] text-slate-400 font-bold bg-slate-50"><span class="block">防御➡</span><span class="block">攻撃⬇</span></div></th>';typeKeys.forEach(t=>{html+=`<th class="p-0 sticky-row z-20 text-white border-b-2 border-slate-200 min-w-[32px]" style="background-color:${typeColors[t]}"><div class="writing-mode-vertical h-full w-full flex items-center justify-center font-bold tracking-widest">${typeJa[t]}</div></th>`});html+='</tr></thead><tbody>';typeKeys.forEach(atk=>{html+=`<tr><th class="p-0 sticky-col z-10 text-white border-r-2 border-slate-200" style="background-color:${typeColors[atk]}"><div class="h-[32px] flex items-center justify-center font-bold px-1 text-[10px]">${typeJa[atk]}</div></th>`;typeKeys.forEach(def=>{let effect=0;const rel=typeMatrix[atk];if(rel&&rel[def]!==undefined){effect=rel[def]}let cellClass="type-table-cell";let mark="";if(effect===1){cellClass+=" cell-2x";mark="○"}else if(effect===2){cellClass+=" cell-05x";mark="△"}else if(effect===3){cellClass+=" cell-0x";mark="×"}else{cellClass+=" cell-1x"}html+=`<td class="p-0 border border-slate-100"><div class="${cellClass}">${mark}</div></td>`});html+='</tr>'});html+='</tbody></table>';container.innerHTML=html; fitTableToContainer();}
-    
-    // テーブルをコンテナに収める処理
-    function fitTableToContainer(){
-        const wrapper = document.getElementById('tableWrapper');
-        const table = document.getElementById('typeTable');
-        if(!wrapper || !table) return;
+    // UIヘルパー関数 (SVG生成)
+    function renderTypeTable(){
+        const container = document.getElementById('tableContainer');
+        const CELL_SIZE = 25;
+        const HEADER_SIZE = 70;
+        const TOTAL_SIZE = HEADER_SIZE + (typeKeys.length * CELL_SIZE);
         
-        // リセット
-        document.getElementById('tableContainer').style.transform = 'scale(1)';
+        // SVGの開始タグ
+        let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TOTAL_SIZE} ${TOTAL_SIZE}" width="100%" height="100%">`;
         
-        const wrapW = wrapper.clientWidth - 16; // padding分
-        const wrapH = wrapper.clientHeight - 16;
-        const tblW = table.offsetWidth;
-        const tblH = table.offsetHeight;
-        
-        if (tblW > 0 && tblH > 0) {
-            const scale = Math.min(1, Math.min(wrapW / tblW, wrapH / tblH));
-            document.getElementById('tableContainer').style.transform = `scale(${scale})`;
-        }
-    }
+        // 背景 (角)
+        svg += `<rect x="0" y="0" width="${HEADER_SIZE}" height="${HEADER_SIZE}" fill="#f8f9fa" />`;
+        svg += `<line x1="0" y1="0" x2="${HEADER_SIZE}" y2="${HEADER_SIZE}" stroke="#e5e7eb" stroke-width="1"/>`;
+        svg += `<text x="${HEADER_SIZE/2+10}" y="${HEADER_SIZE/2-10}" font-size="9" fill="#9ca3af" text-anchor="middle" font-weight="bold">防御➡</text>`;
+        svg += `<text x="${HEADER_SIZE/2-10}" y="${HEADER_SIZE/2+15}" font-size="9" fill="#9ca3af" text-anchor="middle" font-weight="bold">攻撃⬇</text>`;
 
-    function openTableModal(){renderTypeTable();const modal=document.getElementById('tableModal');modal.classList.remove('hidden');setTimeout(()=>{modal.classList.remove('opacity-0');modal.querySelector('div').classList.remove('scale-95');modal.querySelector('div').classList.add('scale-100'); fitTableToContainer(); },10); window.addEventListener('resize', fitTableToContainer);}
-    function closeTableModal(){const modal=document.getElementById('tableModal');modal.classList.add('opacity-0');modal.querySelector('div').classList.remove('scale-100');modal.querySelector('div').classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden')},300); window.removeEventListener('resize', fitTableToContainer);}
+        typeKeys.forEach((t, i) => {
+            const pos = HEADER_SIZE + (i * CELL_SIZE);
+            const center = pos + (CELL_SIZE / 2);
+            
+            // 上ヘッダー (防御側) - 縦書きテキスト
+            svg += `<rect x="${pos}" y="0" width="${CELL_SIZE}" height="${HEADER_SIZE}" fill="${typeColors[t]}" stroke="#fff" stroke-width="1"/>`;
+            // SVGでの縦書きは writing-mode もあるが、互換性のため1文字ずつ配置か回転を使うのが無難。今回は回転で。
+            svg += `<text x="${center}" y="${HEADER_SIZE-10}" font-size="10" fill="white" font-weight="bold" text-anchor="start" transform="rotate(-90, ${center}, ${HEADER_SIZE-10})">${typeJa[t]}</text>`;
+
+            // 左ヘッダー (攻撃側)
+            svg += `<rect x="0" y="${pos}" width="${HEADER_SIZE}" height="${CELL_SIZE}" fill="${typeColors[t]}" stroke="#fff" stroke-width="1"/>`;
+            svg += `<text x="${HEADER_SIZE-5}" y="${center+4}" font-size="10" fill="white" font-weight="bold" text-anchor="end">${typeJa[t]}</text>`;
+        });
+
+        // グリッドと判定
+        typeKeys.forEach((atk, row) => {
+            const y = HEADER_SIZE + (row * CELL_SIZE);
+            typeKeys.forEach((def, col) => {
+                const x = HEADER_SIZE + (col * CELL_SIZE);
+                let effect = 0;
+                const rel = typeMatrix[atk];
+                if(rel && rel[def] !== undefined) effect = rel[def];
+                
+                // 背景
+                let bg = "#ffffff";
+                let text = "";
+                let textColor = "#000";
+                
+                if(effect === 1) { bg = "#fff1f2"; text = "○"; textColor = "#e11d48"; } // 2倍
+                else if(effect === 2) { bg = "#eff6ff"; text = "△"; textColor = "#2563eb"; } // 0.5倍
+                else if(effect === 3) { bg = "#f1f5f9"; text = "×"; textColor = "#64748b"; } // 0倍 (無効)
+                
+                svg += `<rect x="${x}" y="${y}" width="${CELL_SIZE}" height="${CELL_SIZE}" fill="${bg}" stroke="#e5e7eb" stroke-width="0.5"/>`;
+                if(text) {
+                    svg += `<text x="${x + CELL_SIZE/2}" y="${y + CELL_SIZE/2 + 4}" font-size="12" fill="${textColor}" text-anchor="middle" font-weight="bold">${text}</text>`;
+                }
+            });
+        });
+
+        svg += `</svg>`;
+        container.innerHTML = svg;
+    }
+    
+    function openTableModal(){renderTypeTable();const modal=document.getElementById('tableModal');modal.classList.remove('hidden');setTimeout(()=>{modal.classList.remove('opacity-0');modal.querySelector('div').classList.remove('scale-95');modal.querySelector('div').classList.add('scale-100')},10)}
+    function closeTableModal(){const modal=document.getElementById('tableModal');modal.classList.add('opacity-0');modal.querySelector('div').classList.remove('scale-100');modal.querySelector('div').classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden')},300)}
     
     function showSuggestions(show){const list=document.getElementById('suggestList');if(show){list.classList.remove('hidden')}else{setTimeout(()=>list.classList.add('hidden'),200)}}
     
