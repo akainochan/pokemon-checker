@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ポケモンチェッカー</title>
    
   <!-- Tailwind CSS -->
@@ -10,7 +10,7 @@
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;800;900&display=swap" rel="stylesheet">
   <!-- アイコン -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@0.563.0"></script>
 
   <style>
     :root { --background: #f8f9fa; --card: #ffffff; --primary: #3b82f6; }
@@ -175,7 +175,7 @@
   </button>
 
   <!-- モーダル群 -->
-  <div id="tableModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden transition-opacity opacity-0" onclick="closeTableModal()">
+  <div id="tableModal" role="dialog" aria-modal="true" aria-label="タイプ相性表" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden transition-opacity opacity-0" onclick="closeTableModal()">
     <!-- 中身を中央揃え -->
     <div class="bg-white rounded-3xl w-full max-w-4xl shadow-2xl transform scale-95 transition-transform border border-slate-100 flex flex-col overflow-hidden max-h-[90vh]" onclick="event.stopPropagation()">
       <div class="p-3 border-b border-slate-100 flex justify-between items-center bg-white z-20 shrink-0">
@@ -196,7 +196,7 @@
     </div>
   </div>
 
-  <div id="abilityModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm hidden transition-opacity opacity-0" onclick="closeModal()">
+  <div id="abilityModal" role="dialog" aria-modal="true" aria-label="特性詳細" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm hidden transition-opacity opacity-0" onclick="closeModal()">
     <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl transform scale-95 transition-transform border border-slate-100" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between mb-4"><h3 id="modalAbilityName" class="text-xl font-black text-slate-800"></h3><span id="modalHiddenBadge" class="hidden text-xs bg-rose-100 text-rose-500 px-2 py-1 rounded-md border border-rose-200 font-bold">夢特性</span></div>
       <p id="modalAbilityFlavor" class="text-slate-600 text-sm leading-relaxed font-medium bg-slate-50 p-4 rounded-2xl"></p>
@@ -205,7 +205,7 @@
   </div>
   
   <!-- 画像拡大モーダル -->
-  <div id="imageModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden transition-opacity opacity-0" onclick="closeImageModal()">
+  <div id="imageModal" role="dialog" aria-modal="true" aria-label="画像拡大" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md hidden transition-opacity opacity-0" onclick="closeImageModal()">
       <div class="relative max-w-lg w-full flex flex-col items-center" onclick="event.stopPropagation()">
           <button onclick="closeImageModal()" class="absolute -top-12 right-0 p-2 text-white/80 hover:text-white transition-colors"><i data-lucide="x" class="w-8 h-8"></i></button>
           <div class="bg-white rounded-3xl p-4 md:p-8 w-full shadow-2xl flex flex-col items-center animate-in zoom-in-95 duration-200">
@@ -219,6 +219,24 @@
   <script>
     // アイコン初期化
     lucide.createIcons();
+
+    // HTMLエスケープ (XSS対策)
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    // APIレスポンスキャッシュ
+    const apiCache = new Map();
+    async function cachedFetch(url) {
+        if (apiCache.has(url)) return apiCache.get(url);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Not Found");
+        const data = await res.json();
+        apiCache.set(url, data);
+        return data;
+    }
 
     const typeJa = { normal:'ノーマル', fire:'ほのお', water:'みず', electric:'でんき', grass:'くさ', ice:'こおり', fighting:'かくとう', poison:'どく', ground:'じめん', flying:'ひこう', psychic:'エスパー', bug:'むし', rock:'いわ', ghost:'ゴースト', dragon:'ドラゴン', dark:'あく', steel:'はがね', fairy:'フェアリー' };
     const typeKeys = Object.keys(typeJa);
@@ -354,6 +372,11 @@
 
         const results = await Promise.all(promises);
 
+        // HTML文字列を蓄積して一括代入 (innerHTML += ループによるDOM再パース回避)
+        let mainHtml = '';
+        let gmaxHtml = '';
+        let otherHtml = '';
+
         for (const data of results) {
             if (!data) continue;
             if (document.getElementById(data.uniqueId || 'poke-'+data.id)) continue; // 重複防止
@@ -369,17 +392,24 @@
             const isGmax = data.rawName.includes('gmax');
 
             if (isMajor) {
-                mainArea.innerHTML += createCardHTML(data);
+                mainHtml += createCardHTML(data);
             } else if (isGmax) {
-                altSection.classList.remove('hidden');
-                gmaxWrapper.classList.remove('hidden');
-                gmaxList.innerHTML += createGmaxCardHTML(data);
+                gmaxHtml += createGmaxCardHTML(data);
             } else {
-                // 3. その他 (マイナーなフォルムチェンジ) -> アイコンのみ
-                altSection.classList.remove('hidden');
-                otherWrapper.classList.remove('hidden');
-                otherGrid.innerHTML += createIconCardHTML(data);
+                otherHtml += createIconCardHTML(data);
             }
+        }
+
+        if (mainHtml) mainArea.innerHTML += mainHtml;
+        if (gmaxHtml) {
+            altSection.classList.remove('hidden');
+            gmaxWrapper.classList.remove('hidden');
+            gmaxList.innerHTML += gmaxHtml;
+        }
+        if (otherHtml) {
+            altSection.classList.remove('hidden');
+            otherWrapper.classList.remove('hidden');
+            otherGrid.innerHTML += otherHtml;
         }
         
         document.getElementById('moreLoading').classList.add('hidden');
@@ -388,12 +418,8 @@
 
     // --- データ取得ロジック ---
     async function fetchPokemonData(idOrName) {
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${idOrName}`);
-        if (!res.ok) throw new Error("Not Found");
-        const data = await res.json();
-
-        const speciesRes = await fetch(data.species.url);
-        const species = await speciesRes.json();
+        const data = await cachedFetch(`https://pokeapi.co/api/v2/pokemon/${idOrName}`);
+        const species = await cachedFetch(data.species.url);
 
         let jaName = species.names.find(x => x.language.name === 'ja')?.name || data.name;
         let displayName = jaName;
@@ -401,7 +427,7 @@
         // フォーム名補正 (簡易日本語化)
         if (data.name !== species.name) {
              const suffix = data.name.replace(species.name + '-', '');
-             
+
              // メガシンカ・リージョン
              if (suffix === 'mega') displayName = "メガ" + jaName;
              else if (suffix === 'mega-x') displayName = "メガ" + jaName + " X";
@@ -412,7 +438,7 @@
              else if (suffix === 'paldea') displayName = jaName + "(パルデア)";
              else if (suffix === 'gmax') displayName = jaName + "(キョダイ)";
              else if (suffix === 'primal') displayName = "ゲンシ" + jaName;
-             
+
              // 伝説・特殊フォルムの日本語化対応
              else if (data.name.includes('calyrex-ice')) displayName = jaName + "(はくば)";
              else if (data.name.includes('calyrex-shadow')) displayName = jaName + "(こくば)";
@@ -431,26 +457,23 @@
              else if (data.name.includes('unbound')) displayName = jaName + "(ときはなたれし)";
              else if (data.name.includes('bloodmoon')) displayName = jaName + "(アカツキ)";
              else if (data.name.includes('mask')) displayName = jaName + "(オーガポン)"; // オーガポン用簡易
-             
+
              // その他（英語のままにするか、suffixを表示）
              else displayName = jaName + ` (${suffix})`;
         }
 
-        // タイプ相性計算用のURLリスト
+        // タイプ相性・特性・進化チェーンを並列取得
         const typeUrls = data.types.map(t => t.type.url);
-        const typeDetails = await Promise.all(typeUrls.map(url => fetch(url).then(r => r.json())));
-
-        const abilityPromises = data.abilities.map(async a => {
-            const r = await fetch(a.ability.url);
-            const j = await r.json();
-            const n = j.names.find(x => x.language.name === 'ja')?.name || a.ability.name;
-            const f = (j.flavor_text_entries.find(x => x.language.name === 'ja') || {}).flavor_text || "";
-            return { name: n, is_hidden: a.is_hidden, flavor: f.replace(/\r?\n|\f/g, '') };
-        });
-        const abilities = await Promise.all(abilityPromises);
-
-        const evoRes = await fetch(species.evolution_chain.url);
-        const evoJson = await evoRes.json();
+        const [typeDetails, abilities, evoJson] = await Promise.all([
+            Promise.all(typeUrls.map(url => cachedFetch(url))),
+            Promise.all(data.abilities.map(async a => {
+                const j = await cachedFetch(a.ability.url);
+                const n = j.names.find(x => x.language.name === 'ja')?.name || a.ability.name;
+                const f = (j.flavor_text_entries.find(x => x.language.name === 'ja') || {}).flavor_text || "";
+                return { name: n, is_hidden: a.is_hidden, flavor: f.replace(/\r?\n|\f/g, '') };
+            })),
+            cachedFetch(species.evolution_chain.url)
+        ]);
         const evolution = parseEvolution(evoJson.chain, species.name);
 
         let variations = [];
@@ -510,20 +533,22 @@
         const content = document.getElementById('quickNavContent');
         content.innerHTML = '';
         let hasNav = false;
-        
+
         if (data.evolution) {
             if (data.evolution.pre) {
                 hasNav = true;
-                content.innerHTML += `<button onclick="setSearch('${data.evolution.pre}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full text-xs font-bold transition-colors flex items-center gap-1"><i data-lucide="arrow-left" class="w-3 h-3"></i> ${data.evolution.pre}</button>`;
+                const safePre = escapeHtml(data.evolution.pre);
+                content.innerHTML += `<button onclick="setSearch('${safePre}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full text-xs font-bold transition-colors flex items-center gap-1"><i data-lucide="arrow-left" class="w-3 h-3"></i> ${safePre}</button>`;
             }
             if (data.evolution.next && data.evolution.next.length > 0) {
                 hasNav = true;
                 data.evolution.next.forEach(nextName => {
-                    content.innerHTML += `<button onclick="setSearch('${nextName}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full text-xs font-bold transition-colors flex items-center gap-1">${nextName} <i data-lucide="arrow-right" class="w-3 h-3"></i></button>`;
+                    const safeNext = escapeHtml(nextName);
+                    content.innerHTML += `<button onclick="setSearch('${safeNext}')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full text-xs font-bold transition-colors flex items-center gap-1">${safeNext} <i data-lucide="arrow-right" class="w-3 h-3"></i></button>`;
                 });
             }
         }
-        
+
         if (hasNav) nav.classList.remove('hidden'); else nav.classList.add('hidden');
     }
     
@@ -531,17 +556,15 @@
     function createIconCardHTML(data) {
         const mainType = data.types[0];
         const typeColor = typeColors[mainType] || '#94a3b8';
-        const imgUrl = data.image;
+        const imgUrl = escapeHtml(data.image);
         const name = data.name.replace(/\(.*\)/, '').trim();
-        const typesJson = JSON.stringify(data.types); // モーダル用
-        
-        // シングルクォートエスケープ
-        const safeName = name.replace(/'/g, "\\'");
-        
+        const safeName = escapeHtml(name);
+        const typesJson = escapeHtml(JSON.stringify(data.types));
+
         return `
         <div onclick='openImageModal("${imgUrl}", "${safeName}", ${typesJson})' class="icon-card relative w-16 h-16 md:w-20 md:h-20 bg-white rounded-xl shadow-sm border border-slate-200 flex items-center justify-center overflow-hidden group">
             <div class="absolute inset-x-0 bottom-0 h-1/2 opacity-20" style="background-color: ${typeColor};"></div>
-            <img src="${imgUrl}" class="w-12 h-12 md:w-16 md:h-16 object-contain z-10 group-hover:scale-110 transition-transform duration-300" loading="lazy" alt="${name}">
+            <img src="${imgUrl}" class="w-12 h-12 md:w-16 md:h-16 object-contain z-10 group-hover:scale-110 transition-transform duration-300" loading="lazy" alt="${safeName}">
         </div>
         `;
     }
@@ -550,25 +573,25 @@
     function createGmaxCardHTML(data) {
         const mainType = data.types[0];
         const typeColor = typeColors[mainType] || '#94a3b8';
-        const imgUrl = data.image;
-        const name = data.name;
-        const typesJson = JSON.stringify(data.types); // モーダル用
-        const safeName = name.replace(/'/g, "\\'");
-        
+        const imgUrl = escapeHtml(data.image);
+        const safeName = escapeHtml(data.name);
+        const typesJson = escapeHtml(JSON.stringify(data.types));
+        const safeFlavor = escapeHtml(data.flavor || "説明文がありません");
+
         return `
         <div class="gmax-card flex items-center bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden p-4 relative">
             <div class="absolute left-0 top-0 bottom-0 w-2" style="background-color: ${typeColor};"></div>
-            
+
             <div onclick='openImageModal("${imgUrl}", "${safeName}", ${typesJson})' class="w-24 h-24 shrink-0 mr-4 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 cursor-zoom-in hover:opacity-80 transition-opacity">
-                <img src="${data.image}" class="w-20 h-20 object-contain drop-shadow-md" loading="lazy">
+                <img src="${imgUrl}" class="w-20 h-20 object-contain drop-shadow-md" loading="lazy">
             </div>
-            
+
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1">
-                    <h3 class="font-black text-slate-800 text-lg">${data.name}</h3>
+                    <h3 class="font-black text-slate-800 text-lg">${safeName}</h3>
                 </div>
                 <div class="text-xs text-slate-500 leading-relaxed line-clamp-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                   ${data.flavor || "説明文がありません"}
+                   ${safeFlavor}
                 </div>
             </div>
         </div>
@@ -587,15 +610,15 @@
         const typesHTML = data.types.map(t => `<span class="type-badge px-3 py-1 rounded-full text-white text-xs" style="background-color:${typeColors[t]}">${typeJa[t]}</span>`).join('');
         
         const abilitiesHTML = data.abilities.map(a => {
-            const safeName = a.name.replace(/'/g, "\\'");
-            const safeFlavor = (a.flavor || "").replace(/'/g, "\\'").replace(/\n/g, "");
+            const safeName = escapeHtml(a.name);
+            const safeFlavor = escapeHtml((a.flavor || "").replace(/\n/g, ""));
             return `<div class="mb-3 last:mb-0 group">
                 <button onclick="openModal('${safeName}', ${a.is_hidden}, '${safeFlavor}')" class="w-full text-left flex items-center flex-wrap gap-1 md:cursor-default">
-                    <span class="font-bold text-slate-700 text-sm border-b border-dashed border-slate-300 md:border-0 pb-0.5 md:pb-0">${a.name}</span>
+                    <span class="font-bold text-slate-700 text-sm border-b border-dashed border-slate-300 md:border-0 pb-0.5 md:pb-0">${safeName}</span>
                     ${a.is_hidden ? '<span class="text-[10px] bg-rose-100 text-rose-500 px-1.5 py-0.5 rounded border border-rose-200 font-bold">夢特性</span>' : ''}
                     <i data-lucide="info" class="w-3 h-3 text-slate-400 md:hidden ml-1"></i>
                 </button>
-                <div class="hidden md:block text-xs text-slate-500 mt-1 leading-relaxed">${a.flavor || ''}</div>
+                <div class="hidden md:block text-xs text-slate-500 mt-1 leading-relaxed">${safeFlavor}</div>
             </div>`;
         }).join('');
 
@@ -763,45 +786,127 @@
         container.innerHTML = svg;
     }
     
-    function openTableModal(){renderTypeTable();const modal=document.getElementById('tableModal');modal.classList.remove('hidden');setTimeout(()=>{modal.classList.remove('opacity-0');modal.querySelector('div').classList.remove('scale-95');modal.querySelector('div').classList.add('scale-100')},10)}
-    function closeTableModal(){const modal=document.getElementById('tableModal');modal.classList.add('opacity-0');modal.querySelector('div').classList.remove('scale-100');modal.querySelector('div').classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden')},300)}
-    
-    function showSuggestions(show){const list=document.getElementById('suggestList');if(show){list.classList.remove('hidden')}else{setTimeout(()=>list.classList.add('hidden'),200)}}
+    function openTableModal() {
+        renderTypeTable();
+        const modal = document.getElementById('tableModal');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.querySelector('div').classList.remove('scale-95');
+            modal.querySelector('div').classList.add('scale-100');
+        }, 10);
+    }
+
+    function closeTableModal() {
+        const modal = document.getElementById('tableModal');
+        modal.classList.add('opacity-0');
+        modal.querySelector('div').classList.remove('scale-100');
+        modal.querySelector('div').classList.add('scale-95');
+        setTimeout(() => { modal.classList.add('hidden'); }, 300);
+    }
+
+    function showSuggestions(show) {
+        const list = document.getElementById('suggestList');
+        if (show) { list.classList.remove('hidden'); }
+        else { setTimeout(() => list.classList.add('hidden'), 200); }
+    }
     
     // ひらがな->カタカナ変換
     function hiraToKata(str) {
         return str.replace(/[\u3041-\u3096]/g, function(match) {
-            var chr = match.charCodeAt(0) + 0x60;
+            const chr = match.charCodeAt(0) + 0x60;
             return String.fromCharCode(chr);
         });
     }
 
-    function filterSuggestions(val){
-        const h=document.getElementById('historyArea');const p=document.getElementById('predictArea');const l=document.getElementById('predictList');
-        if(!val){h.classList.remove('hidden');p.classList.add('hidden');return}
-        
-        h.classList.add('hidden');p.classList.remove('hidden');
-        
+    let suggestIndex = -1; // サジェストのキーボードナビゲーション用
+
+    function filterSuggestions(val) {
+        const h = document.getElementById('historyArea');
+        const p = document.getElementById('predictArea');
+        const l = document.getElementById('predictList');
+        suggestIndex = -1;
+
+        if (!val) { h.classList.remove('hidden'); p.classList.add('hidden'); return; }
+
+        h.classList.add('hidden');
+        p.classList.remove('hidden');
+
         // 入力値を正規化（ひらがな->カタカナ）
         const kataVal = hiraToKata(val);
-        
+
         // 検索 (ひらがなでもカタカナでもヒットするように)
         let hits = SUGGEST_DICT.filter(n => n.includes(val) || n.includes(kataVal));
-        
-        // 表示件数制限 (例えば10件)
+
+        // 表示件数制限
         hits = hits.slice(0, 10);
 
-        if(hits.length>0){
-            l.innerHTML=hits.map(n=>`<button onclick="setSearch('${n}')" class="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-bold border-b border-slate-50 last:border-0 transition-colors flex items-center gap-2"><i data-lucide="search" class="w-3 h-3 text-slate-300"></i> ${n}</button>`).join('');
-            lucide.createIcons()
-        }else{
-            l.innerHTML=`<div class="px-3 py-2 text-slate-400 text-sm">候補なし</div>`
+        if (hits.length > 0) {
+            l.innerHTML = hits.map(n => {
+                const safe = escapeHtml(n);
+                return `<button onclick="setSearch('${safe}')" class="suggest-item w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-700 font-bold border-b border-slate-50 last:border-0 transition-colors flex items-center gap-2"><i data-lucide="search" class="w-3 h-3 text-slate-300"></i> ${safe}</button>`;
+            }).join('');
+            lucide.createIcons();
+        } else {
+            l.innerHTML = `<div class="px-3 py-2 text-slate-400 text-sm">候補なし</div>`;
         }
     }
-    
-    function setSearch(name){document.getElementById('searchInput').value=name;runSearch()}
-    function openModal(name,isHidden,flavor){if(window.innerWidth>=768)return;document.getElementById('modalAbilityName').innerText=name;document.getElementById('modalAbilityFlavor').innerText=flavor||'説明文がありません';const badge=document.getElementById('modalHiddenBadge');if(isHidden)badge.classList.remove('hidden');else badge.classList.add('hidden');const modal=document.getElementById('abilityModal');modal.classList.remove('hidden');setTimeout(()=>{modal.classList.remove('opacity-0');modal.querySelector('div').classList.remove('scale-95');modal.querySelector('div').classList.add('scale-100')},10)}
-    function closeModal(){const modal=document.getElementById('abilityModal');modal.classList.add('opacity-0');modal.querySelector('div').classList.remove('scale-100');modal.querySelector('div').classList.add('scale-95');setTimeout(()=>{modal.classList.add('hidden')},300)}
+
+    // サジェストのキーボードナビゲーション (ArrowUp/ArrowDown/Enter)
+    document.getElementById('searchInput').addEventListener('keydown', function(e) {
+        const items = document.querySelectorAll('#predictList .suggest-item');
+        if (!items.length) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            suggestIndex = Math.min(suggestIndex + 1, items.length - 1);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            suggestIndex = Math.max(suggestIndex - 1, -1);
+        } else if (e.key === 'Enter' && suggestIndex >= 0) {
+            e.preventDefault();
+            items[suggestIndex].click();
+            return;
+        } else {
+            return;
+        }
+
+        items.forEach((item, i) => {
+            item.classList.toggle('bg-slate-100', i === suggestIndex);
+        });
+        if (suggestIndex >= 0) {
+            this.value = items[suggestIndex].textContent.trim();
+        }
+    });
+
+    function setSearch(name) {
+        document.getElementById('searchInput').value = name;
+        runSearch();
+    }
+
+    function openModal(name, isHidden, flavor) {
+        if (window.innerWidth >= 768) return;
+        document.getElementById('modalAbilityName').innerText = name;
+        document.getElementById('modalAbilityFlavor').innerText = flavor || '説明文がありません';
+        const badge = document.getElementById('modalHiddenBadge');
+        if (isHidden) badge.classList.remove('hidden');
+        else badge.classList.add('hidden');
+        const modal = document.getElementById('abilityModal');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            modal.querySelector('div').classList.remove('scale-95');
+            modal.querySelector('div').classList.add('scale-100');
+        }, 10);
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('abilityModal');
+        modal.classList.add('opacity-0');
+        modal.querySelector('div').classList.remove('scale-100');
+        modal.querySelector('div').classList.add('scale-95');
+        setTimeout(() => { modal.classList.add('hidden'); }, 300);
+    }
     
     // 画像モーダル制御
     function openImageModal(imgUrl, name, types){
@@ -822,10 +927,37 @@
         setTimeout(() => modal.classList.add('hidden'), 300);
     }
 
-    function loadHistory(){const history=JSON.parse(localStorage.getItem('poke_history')||'[]');renderHistory(history)}
-    function saveHistory(name){let history=JSON.parse(localStorage.getItem('poke_history')||'[]');history=history.filter(h=>h!==name);history.unshift(name);if(history.length>5)history.pop();localStorage.setItem('poke_history',JSON.stringify(history));renderHistory(history)}
-    function renderHistory(history){const el=document.getElementById('historyList');if(history.length===0){el.innerHTML='<span class="text-xs text-slate-300 px-2">履歴なし</span>';return}el.innerHTML=history.map(name=>`<button onclick="setSearch('${name}')" class="bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full text-sm text-slate-600 font-bold transition-colors">${name}</button>`).join('')}
-    function showError(msg){const err=document.getElementById('error');err.innerText=msg;err.classList.remove('hidden')}
+    function loadHistory() {
+        const history = JSON.parse(localStorage.getItem('poke_history') || '[]');
+        renderHistory(history);
+    }
+
+    function saveHistory(name) {
+        let history = JSON.parse(localStorage.getItem('poke_history') || '[]');
+        history = history.filter(h => h !== name);
+        history.unshift(name);
+        if (history.length > 5) history.pop();
+        localStorage.setItem('poke_history', JSON.stringify(history));
+        renderHistory(history);
+    }
+
+    function renderHistory(history) {
+        const el = document.getElementById('historyList');
+        if (history.length === 0) {
+            el.innerHTML = '<span class="text-xs text-slate-300 px-2">履歴なし</span>';
+            return;
+        }
+        el.innerHTML = history.map(name => {
+            const safe = escapeHtml(name);
+            return `<button onclick="setSearch('${safe}')" class="bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full text-sm text-slate-600 font-bold transition-colors">${safe}</button>`;
+        }).join('');
+    }
+
+    function showError(msg) {
+        const err = document.getElementById('error');
+        err.innerText = msg;
+        err.classList.remove('hidden');
+    }
   </script>
 </body>
 </html>
